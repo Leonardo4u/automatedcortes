@@ -1,0 +1,6 @@
+# configuração pessoal (caminhos das pastas de cada usuário)
+pastas.json
+
+# Python
+__pycache__/
+*.pyc
