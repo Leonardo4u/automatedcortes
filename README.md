@@ -66,7 +66,8 @@ Dá para usar os scripts sem o Claude:
 |---|---|
 | `scripts/momentos.py` | Acha os picos de agitação, extrai os trechos e pede a análise (Gemini ou transcrição local) |
 | `scripts/react.py` | Monta o corte: `frame` (quadro com grade para medir recortes), `preview` (um quadro do resultado) e `render` |
-| `scripts/legenda.py` | Transcreve o trecho palavra por palavra e gera a legenda `.ass` para o `react.py` gravar |
+| `scripts/classico.py` | Formato clássico para quem fala em tela cheia: vídeo 16:9 no meio, fundo desfocado, título fixo em cima e legenda embaixo (`preview` e `render`) |
+| `scripts/legenda.py` | Transcreve o trecho palavra por palavra e gera a legenda `.ass` para o `react.py` ou o `classico.py` gravar |
 
 Cada um aceita `--help`.
 

@@ -1,12 +1,12 @@
 ---
 name: corte-react
-description: Monta vídeos verticais (TikTok, Reels, Shorts) no formato react — câmera/reação em cima e o vídeo assistido embaixo, 1080x1920. Use sempre que o usuário pedir um corte de react, corte de live ou de streamer, vídeo com "câmera em cima e vídeo embaixo", tela dividida vertical, facecam em cima de gameplay, ou quiser transformar um clipe de live (Kick, Twitch, YouTube) ou dois arquivos (reação + conteúdo) nesse layout, mesmo que não diga a palavra "react". Também acha sozinho os melhores momentos de um VOD ou live longa: use quando o usuário disser que baixou um vídeo e pedir "faz cortes", "cria clipes" ou "acha os melhores momentos", sem indicar trechos. Entrega cada corte com placa de CTA, descrição e hashtags.
+description: Monta vídeos verticais (TikTok, Reels, Shorts) no formato react — câmera/reação em cima e o vídeo assistido embaixo, 1080x1920. Use sempre que o usuário pedir um corte de react, corte de live ou de streamer, vídeo com "câmera em cima e vídeo embaixo", tela dividida vertical, facecam em cima de gameplay, ou quiser transformar um clipe de live (Kick, Twitch, YouTube) ou dois arquivos (reação + conteúdo) nesse layout, mesmo que não diga a palavra "react". Trechos em que a pessoa só fala em tela cheia (vlog, podcast, live de conversa sem nada na tela) saem no formato clássico: vídeo no meio, título em cima, legenda embaixo. Também acha sozinho os melhores momentos de um VOD ou live longa: use quando o usuário disser que baixou um vídeo e pedir "faz cortes", "cria clipes" ou "acha os melhores momentos", sem indicar trechos. Entrega cada corte com placa de CTA, descrição e hashtags.
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # corte-react
 
-Monta o formato de corte de streamer: a **câmera de quem reage em cima** e o **conteúdo assistido embaixo**, num vertical de 1080x1920 a 30 fps. Todo o trabalho pesado é do script `scripts/react.py` (Python padrão + ffmpeg); o seu papel é descobrir as regiões certas do quadro, conferir a prévia com os próprios olhos e só então renderizar.
+Monta o formato de corte de streamer: a **câmera de quem reage em cima** e o **conteúdo assistido embaixo**, num vertical de 1080x1920 a 30 fps. Todo o trabalho pesado é do script `scripts/react.py` (Python padrão + ffmpeg); o seu papel é descobrir as regiões certas do quadro, conferir a prévia com os próprios olhos e só então renderizar. Para quem fala em tela cheia, sem conteúdo para pôr embaixo, existe o formato clássico (`scripts/classico.py`, veja "Formato clássico").
 
 `SKILL_DIR` é a pasta deste SKILL.md. No Windows use `python`; no macOS/Linux, `python3`.
 
@@ -53,6 +53,30 @@ Medido em cortes reais desse formato:
 
 **Dois arquivos.** A gravação da câmera e o vídeo assistido vêm separados. Aqui o sincronismo é responsabilidade do usuário: pergunte em que instante cada um começa (`--start` para o conteúdo, `--cam-start` para a câmera) se não estiver claro.
 
+## Formato clássico (quem fala em tela cheia)
+
+Quando o trecho é só a pessoa falando para a câmera em tela cheia, não há o que pôr embaixo. O usuário aprovou este formato para esses casos:
+
+- o quadro 16:9 levemente ampliado (`--zoom 1.185`: corta ~8% de cada lateral) ocupando a largura toda no meio, de y=600 a y=1320;
+- o mesmo vídeo desfocado e escurecido preenchendo o fundo;
+- uma placa amarela fixa, levemente inclinada, em cima (o título, quebrado sozinho em até duas linhas, com número grudado na palavra: "GTA 6" nunca vira "GTA / 6");
+- a legenda com a palavra que acende logo abaixo do vídeo.
+
+Ele mostra o quadro inteiro, então serve mesmo quando a pessoa se mexe de um lado para o outro (o que estraga um recorte vertical fixo do rosto). Como é conversa, leva legenda.
+
+```bash
+python "${SKILL_DIR}/scripts/legenda.py" "<video>" --start 1110 --end 1140 --split 0.75 --depois-de 0 --out "<pasta-temp>/c01.ass"
+python "${SKILL_DIR}/scripts/classico.py" preview --source "<video>" --start 1110 --end 1140 \
+  --subs "<pasta-temp>/c01.ass" --title "O dia que o GTA 6 foi anunciado" --at 9 --out "<pasta-temp>/previa.jpg"
+python "${SKILL_DIR}/scripts/classico.py" render --source "<video>" --start 1110 --end 1140 \
+  --subs "<pasta-temp>/c01.ass" --title "O dia que o GTA 6 foi anunciado" --out "<Prontos>/<video>/01_nome.mp4"
+```
+
+- Na legenda, use sempre `--split 0.75` (fica centrada a 1440 px, logo abaixo do vídeo) e `--depois-de 0` (aqui o título é fixo, não há placa animada para esperar). A revisão das palavras é a mesma do passo 3.
+- O título é o gancho do corte, curto (até umas 7 palavras), escrito por você; diga ao usuário qual usou.
+- Se o rosto ficar perto de uma borda o trecho todo, `--shift` desloca o corte das laterais (-1 a 1); `--zoom 1.0` mostra o quadro inteiro, sem cortar nada.
+- Num vídeo que mistura formatos (compilação, live que alterna tela cheia e jogo), decida corte a corte: webcam pequena sobre conteúdo vai para o `react.py`; pessoa em tela cheia vai para o clássico.
+
 ## Fluxo
 
 ### 0. Ache os momentos (quando o usuário não disse os trechos)
@@ -68,8 +92,8 @@ Rode em segundo plano: num VOD de horas, medir o áudio leva alguns minutos e a 
 - Os marcados `OK` têm nota igual ou maior que `--min-nota` (padrão 7). Faça cortes de todos eles, salvo se o usuário pediu uma quantidade; `--top N` muda quantos picos são analisados (padrão 14).
 - Os candidatos são repartidos por hora do vídeo, para a parte mais barulhenta da live não levar todos. Num VOD de mais de 3 horas, ou quando o usuário quer muitos cortes, use `--top 30`: com 14 sobra pouco por hora e a busca rende 2 ou 3 clipes. Acima de 15 trechos o Gemini é chamado em lotes (um pedido a cada 15).
 - Se o resultado vier magro, não entregue só o que passou: diga quantos candidatos foram analisados e ofereça baixar a nota mínima para 6 ou analisar mais picos.
-- Momentos em que a webcam ocupa a tela inteira (só conversa) não têm "vídeo embaixo" e não servem para este layout; descarte e diga ao usuário quais eram, porque podem render um corte simples de outro tipo.
-- Cada aprovado ganha uma `grade_NN.jpg`: três quadros do trecho (início, meio, fim) com a grade de 10x10. Abra cada uma para definir os recortes — ela substitui o passo 1 para esses clipes, e mostra se a webcam muda de lugar ou some durante o trecho. Se sumir (o streamer foi para tela cheia, trocou de cena), descarte o candidato e diga ao usuário por quê.
+- Momentos em que a webcam ocupa a tela inteira (só conversa) não têm "vídeo embaixo" e não servem para o layout react: faça-os no formato clássico (veja "Formato clássico"), não os descarte. Descarte só o que não tem rosto nem conteúdo que se sustente sozinho (um menu parado, uma tela de carregamento) e diga ao usuário quais foram.
+- Cada aprovado ganha uma `grade_NN.jpg`: três quadros do trecho (início, meio, fim) com a grade de 10x10. Abra cada uma para definir os recortes — ela substitui o passo 1 para esses clipes, e mostra se a webcam muda de lugar ou some durante o trecho. Se a webcam sumir porque o streamer foi para tela cheia, o trecho vai para o formato clássico; se sumir porque trocou de cena e não sobrou rosto nem conteúdo útil, descarte o candidato e diga ao usuário por quê. Em vídeos editados (compilações, vídeos de YouTube) a cena muda a cada poucos segundos e três quadros enganam: monte uma folha com 9 quadros do trecho (`ffmpeg -ss INICIO -t DUR -i VIDEO -vf "fps=9/DUR,scale=320:-1,drawgrid=w=32:h=18:c=yellow@0.5,tile=3x3" -frames:v 1 folha.jpg`) e confira também onde começa cada segmento, para o corte não abrir no meio de uma transição.
 - Leia `analise.md` (a resposta inteira do Gemini): é dela que saem o texto da placa de CTA e a descrição da postagem. Se a tabela avisar que algum trecho ficou "sem nota legível", a análise dele costuma estar lá, só fora do formato; leia e decida.
 - O título e a nota são opinião do Gemini sobre um trecho curto, não fato verificado. Diga isso ao usuário ao apresentar os cortes.
 
