@@ -74,6 +74,7 @@ python "${SKILL_DIR}/scripts/classico.py" render --source "<video>" --start 1110
 
 - Na legenda, use sempre `--split 0.75` (fica centrada a 1440 px, logo abaixo do vídeo) e `--depois-de 0` (aqui o título é fixo, não há placa animada para esperar). A revisão das palavras é a mesma do passo 3.
 - O título é o gancho do corte, curto (até umas 7 palavras), escrito por você; diga ao usuário qual usou.
+- As regras de "Os 3 primeiros segundos" (primeira frase no assunto do título, rosto no primeiro quadro) valem aqui também: confira com `preview --at 0` e `--at 1`.
 - Se o rosto ficar perto de uma borda o trecho todo, `--shift` desloca o corte das laterais (-1 a 1); `--zoom 1.0` mostra o quadro inteiro, sem cortar nada.
 - Num vídeo que mistura formatos (compilação, live que alterna tela cheia e jogo), decida corte a corte: webcam pequena sobre conteúdo vai para o `react.py`; pessoa em tela cheia vai para o clássico.
 
@@ -97,13 +98,18 @@ Rode em segundo plano: num VOD de horas, medir o áudio leva alguns minutos e a 
 - Leia `analise.md` (a resposta inteira do Gemini): é dela que saem o texto da placa de CTA e a descrição da postagem. Se a tabela avisar que algum trecho ficou "sem nota legível", a análise dele costuma estar lá, só fora do formato; leia e decida.
 - O título e a nota são opinião do Gemini sobre um trecho curto, não fato verificado. Diga isso ao usuário ao apresentar os cortes.
 
+**Os 3 primeiros segundos decidem o corte.** Nas métricas dos cortes já postados, a maior parte do público sai entre o segundo 1 e o 3; depois disso a queda é lenta. Por isso o início que o Gemini (ou você, na reserva local) escolheu é só um ponto de partida. Antes de renderizar, ajuste o `--start` de cada corte por estas duas regras:
+
+1. **A primeira frase entra no assunto da placa.** Ela precisa citar ou armar diretamente aquilo que a placa de CTA promete. Pule muletas e retomadas ("então", "assim", "tipo", "já falei isso", "como eu tava dizendo") e frases que começam pela metade. Exemplo real: o corte que abria com "Los Santos é…" sob a placa "ELE CHUTOU MIAMI PRO GTA 6" segurou 66% do público aos 3 segundos; o que abria com "que é importante pra nós assim" perdeu 57% em 2 segundos. Confira lendo as primeiras falas do trecho (a primeira linha que o `legenda.py` lista, ou `transcricoes.md`); se a frase boa vier alguns segundos depois, avance o `--start` até ela, mesmo que o corte fique mais curto.
+2. **O primeiro quadro tem rosto.** Nada de abrir em vinheta, tela colorida, transição ou cena de carregamento do vídeo original: o corte que começava com 1 segundo de tela amarela antes de aparecer a pessoa foi um dos que mais perderam gente no começo. A verificação está nos passos 3 e 5.
+
 **Cota do Gemini.** A chave gratuita do usuário permite poucos pedidos por dia (20, na última vez em que o limite apareceu), e é por isso que a busca usa um só por vídeo. Não chame a skill `watch` trecho por trecho para "conferir" candidatos: cada chamada gasta um pedido. Se a tabela avisar que a cota acabou, diga ao usuário quando ela volta e a reserva local entra sozinha; siga por ela em vez de deixar o usuário esperando, e avise que rodar o mesmo comando mais tarde refaz a análise pelo Gemini (o áudio e os trechos ficam guardados na pasta de trabalho, então a segunda rodada é rápida). A assinatura do aplicativo Gemini não aumenta a cota da chave de API; são coisas separadas.
 
 **Reserva local, quando o Gemini falha.** O Gemini gratuito fica sobrecarregado com frequência (erro 503) e a cota acaba. Nesses casos o script não para: transcreve os trechos nesta máquina com o Whisper embutido no ffmpeg (modelo em `~/.cache/corte-react/`, cerca de 4 minutos para 14 trechos) e a tabela sai com `modo: transcricao` e o aviso `RESERVA LOCAL`. Aí a nota é sua:
 
 1. Leia `transcricoes.md` inteiro (é curto). Cada trecho traz as falas com o tempo contado do início do trecho e o instante do pico de áudio.
 2. Dê a cada trecho uma nota de 0 a 10 com o mesmo critério do Gemini: existe um momento engraçado, surpreendente ou marcante que funcione sozinho? Conversa comum vale 4 ou menos. Gritos repetidos logo depois de uma fala forte ("Caralho! Caralho!", "Vamos! Vencemos!") costumam ser a reação do streamer, e reação é o que faz um corte de react.
-3. Para os de nota 7 ou mais, escolha início e fim (15 a 50 segundos): comece na frase que arma o momento e termine depois da reação. Some o "início do trecho" para obter os segundos do vídeo original.
+3. Para os de nota 7 ou mais, escolha início e fim (15 a 50 segundos): comece na primeira frase que já entra no assunto (veja "Os 3 primeiros segundos") e termine depois da reação. Some o "início do trecho" para obter os segundos do vídeo original.
 4. Gere as folhas de quadros só dos escolhidos e siga para o passo 2:
 
 ```bash
@@ -157,6 +163,8 @@ Use o mesmo `--start`, `--end` e `--split` do corte. O comando lista os blocos d
 
 **Gameplay não leva legenda.** O usuário decidiu: legenda só em lives de conversa e em reacts. Em gameplay, com várias pessoas falando e gritando ao mesmo tempo, a transcrição embaralha as falas e polui a tela, então esses cortes saem só com a placa de CTA. Não legende um corte de gameplay por achar que aquele diálogo ficou limpo; se parecer que vale, sugira ao usuário e deixe ele decidir. Numa live que mistura os tipos (react no começo, gameplay depois), decida corte a corte pelo que está na tela naquele trecho.
 
+Gere também uma prévia com `--at 0` e outra com `--at 1` (vale para o `react.py` e para o `classico.py`) e confirme que já há rosto na tela nos dois instantes; se houver vinheta, tela colorida ou transição, avance o `--start` para depois dela.
+
 Abra a prévia e verifique de verdade: o rosto está inteiro? O conteúdo está legível e sem a webcam duplicada? Sobrou borda de interface? Ajuste os recortes e repita. A prévia leva um segundo; um render errado desperdiça minutos e o usuário só descobre no fim.
 
 ### 4. Renderize
@@ -178,7 +186,7 @@ Salve o resultado na pasta de saída do usuário (veja "Pastas do usuário"), nu
 
 ### 5. Confirme o resultado
 
-O `render` imprime resolução, duração e presença de áudio. Depois extraia um quadro do arquivo final (`frame` sem `--grid`) e olhe antes de dizer que ficou pronto. Informe ao usuário o caminho, a duração e qualquer coisa que não tenha conseguido verificar — o sincronismo de áudio, por exemplo, você não ouve.
+O `render` imprime resolução, duração e presença de áudio. Depois extraia quadros do arquivo final (`frame` sem `--grid`) nos segundos 0, 1 e no meio, e olhe antes de dizer que ficou pronto: os dois primeiros precisam mostrar o rosto (veja "Os 3 primeiros segundos"); se não mostrarem, refaça com o `--start` adiantado. Informe ao usuário o caminho, a duração e qualquer coisa que não tenha conseguido verificar — o sincronismo de áudio, por exemplo, você não ouve.
 
 ### 6. Sugira a descrição de cada corte
 
